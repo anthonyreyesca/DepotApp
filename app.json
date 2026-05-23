@@ -3,7 +3,7 @@
     "name": "DepotApp",
     "slug": "DepotApp",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "landscape",
     "icon": "./assets/images/icon.png",
     "scheme": "depotapp",
     "userInterfaceStyle": "automatic",
