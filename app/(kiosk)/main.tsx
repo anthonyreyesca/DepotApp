@@ -51,7 +51,7 @@ export default function KioskScreen() {
                     .eq('reference_number', form.reference_number.toUpperCase())
                     .in('status', ['pending', 'in_progress']);
 
-                if (release.amount_requested <= (release.amount_delivered + pendingCount)) {
+                if (release.amount_requested <= (release.amount_delivered + (pendingCount ?? 0))) {
                     setLoading(false)
                     return Alert.alert(
                         'Reference Full',
