@@ -42,9 +42,27 @@ export default function OrdersScreen() {
                 .ilike('reference', order.reference_number.trim()).eq('active', true).single();
 
             if (releaseErr || !release) {
-                const { data: fallback } = await supabase.from('containers').select('*')
-                    .ilike('customer', order.customer_id.trim()).eq('status', 'AI');
-                setStock(fallback || []);
+                const { data: releaseInactive, error: releaseInactiveErr } = await supabase
+                    .from('booking_releases').select('*')
+                    .ilike('reference', order.reference_number.trim()).single();
+
+                if (releaseInactiveErr || !releaseInactive) {
+                    const { data: fallback } = await supabase.from('containers').select('*')
+                        .ilike('customer', order.customer_id.trim()).eq('status', 'AI');
+                    setStock(fallback || []);
+                } else {
+                    try {
+                        Alert.alert('Error', `Ref. ${order.reference_number} is full`);
+                        const { error } = await supabase.from('kiosk_submissions')
+                            .update({ status: 'needs_review' })
+                            .eq('id', order.id);
+                        console.log(error);
+                        if (error) throw error;
+                    } catch {
+                        Alert.alert("Error", "Something went wrong with the connection");
+                    }
+                    return;
+                }
             } else {
                 const { data: matched } = await supabase.from('containers').select('*')
                     .ilike('customer', release.customer.trim())
