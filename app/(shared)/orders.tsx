@@ -34,28 +34,69 @@ export default function OrdersScreen() {
     };
 
     const fetchStockForPickup = async (order: any) => {
-        if (!order.reference_number) return Alert.alert('Error', 'This pickup has no reference number.');
+        if (!order.reference_number) {
+            return Alert.alert('Error', 'This pickup has no reference number.');
+        }
+
         setLoading(true);
+
         try {
             const { data: release, error: releaseErr } = await supabase
-                .from('booking_releases').select('*')
-                .ilike('reference', order.reference_number.trim()).eq('active', true).single();
+                .from('booking_releases')
+                .select('*')
+                .ilike('reference', order.reference_number.trim())
+                .eq('active', true)
+                .single();
 
             if (releaseErr || !release) {
-                const { data: fallback } = await supabase.from('containers').select('*')
-                    .ilike('customer', order.customer_id.trim()).eq('status', 'AI');
-                setStock(fallback || []);
+                const { data: releaseInactive, error: releaseInactiveErr } = await supabase
+                    .from('booking_releases')
+                    .select('*')
+                    .ilike('reference', order.reference_number.trim())
+                    .single();
+
+                if (releaseInactiveErr || !releaseInactive) {
+                    const { data: fallback } = await supabase
+                        .from('containers')
+                        .select('*')
+                        .ilike('customer', order.customer_id.trim())
+                        .eq('status', 'AI');
+                    setStock(fallback || []);
+                } else {
+                    try {
+                        Alert.alert('Error', `${order.reference_number} is full`);
+
+                        const { error } = await supabase
+                            .from('kiosk_submissions')
+                            .update({ status: 'needs_review' })
+                            .eq('id', order.id);
+
+                        if (error) {
+                            throw error;
+                        }
+                    } catch {
+                        Alert.alert('Error', 'Something went wrong with the connection');
+                    }
+                    return;
+                }
             } else {
-                const { data: matched } = await supabase.from('containers').select('*')
+                const { data: matched } = await supabase
+                    .from('containers')
+                    .select('*')
                     .ilike('customer', release.customer.trim())
                     .eq('type', release.type)
                     .eq('status', release.status_required || 'AI');
+
                 setSelectedOrder((prev: any) => ({ ...prev, releaseInfo: release }));
                 setStock(matched || []);
             }
+
             setViewMode('pickup_stock');
-        } catch { Alert.alert('Error', 'Could not load matching stock.'); }
-        finally { setLoading(false); }
+        } catch {
+            Alert.alert('Error', 'Could not load matching stock.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleConfirmPickup = async (container: any) => {
